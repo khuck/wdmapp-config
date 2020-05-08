@@ -17,7 +17,7 @@ At runtime, the application is launched with:
 jsrun <args> tau_exec -monitoring -adios2 <application> <args>
 ```
 
-During execution, TAU will look for adios2.xml for the ADIOS2 parameters.  For the WDM example, the applications will have `PERFSTUBS_DUMP_DATA()` calls in them, which will send one step of TAU profile data to ADIOS2.  The output file will be named tauprofile-<app-name>.bp by default.
+During execution, TAU will look for adios2.xml for the ADIOS2 parameters (it will default to BP file output if it is not found).  For the WDM example, the applications will have `PERFSTUBS_DUMP_DATA()` calls in them, which will send one step of TAU profile data to ADIOS2.  The output file will be named `tauprofile-<executable_name>.bp` by default.
 
 ## Reading the ADIOS2 output
 
