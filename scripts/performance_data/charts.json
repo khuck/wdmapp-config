@@ -5,7 +5,7 @@
         "filename" : "cpu_utilization",
         "granularity" : "node",
         "legend columns" : 3,
-        "x axis" : "Rank",
+        "x axis" : "Node",
         "y axis" : "Percent",
         "components" : [
             "cpu: Guest % / Mean",
@@ -77,15 +77,16 @@
         ]
         },
         {
-        "name" : "Top 5 Timers",
-        "filename" : "top_5_timers",
-        "granularity" : "5",
+        "name" : "Top 9 Timers",
+        "filename" : "top_X_timers",
+        "granularity" : "9",
         "legend columns" : 2,
         "x axis" : "Rank",
         "y axis" : "Time",
         "max label length" : 30
         }
     ],
-    "ADIOS2 config file": "adios2.xml"
+    "ADIOS2 config file": "adios2.xml",
+    "SVG output directory": "/gpfs/alpine/scratch/khuck/csc143/XGC-Examples/neoclassical_core/tau_svg_files"
 }
 

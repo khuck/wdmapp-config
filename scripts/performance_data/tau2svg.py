@@ -5,8 +5,6 @@ import pandas as pd
 from mpi4py import MPI
 import numpy as np
 import adios2
-#import os
-#import glob
 import time
 import argparse
 import matplotlib.pyplot as plt
@@ -17,6 +15,11 @@ from operator import add
 from matplotlib.font_manager import FontProperties
 import json
 import io
+from pathlib import Path
+import os
+import sys
+if sys.version_info[0] < 3 or sys.version_info[1] < 3:
+    raise Exception("Must be using Python 3.3 or newer.")
 
 host_bbox = 'tight'
 rank_bbox = 'tight'
@@ -66,6 +69,9 @@ def build_per_host_dataframe(fr_step, step, num_hosts, config):
     # For each variable, get each MPI rank's data, some will be bogus (they didn't write it)
     for name in config["components"]:
         rows.append(fr_step.read(name))
+    if len(rows[0]) == 0:
+        print("No rows!  Is TAU configured correctly?")
+        return
     print("Processing dataframe...")
     # Now, transpose the matrix so that the rows are each rank, and the variables are columns
     df = pd.DataFrame(rows).transpose()
@@ -83,7 +89,7 @@ def build_per_host_dataframe(fr_step, step, num_hosts, config):
     ax.set_xlabel(config["x axis"])
     ax.set_ylabel(config["y axis"])
     plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.12), ncol=config["legend columns"])
-    imgfile = config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
+    imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
     print("Writing...")
     global host_bbox
     if step == 0:
@@ -99,6 +105,9 @@ def build_per_rank_dataframe(fr_step, step, config):
     # For each variable, get each MPI rank's data
     for name in config["components"]:
         rows.append(fr_step.read(name))
+    if len(rows[0]) == 0:
+        print("No rows!  Is TAU configured correctly?")
+        return
     print("Processing dataframe...")
     # Now, transpose the matrix so that the rows are each rank, and the variables are columns
     df = pd.DataFrame(rows).transpose()
@@ -113,7 +122,7 @@ def build_per_rank_dataframe(fr_step, step, config):
     ax.set_xlabel(config["x axis"])
     ax.set_ylabel(config["y axis"])
     plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11), ncol=config['legend columns'])
-    imgfile = config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
+    imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
     print("Writing...")
     global rank_bbox
     if step == 0:
@@ -164,7 +173,7 @@ def build_topX_timers_dataframe(fr_step, step, config):
     handles, labels = ax.get_legend_handles_labels()
     short_labels = [label[0:config["max label length"]] for label in labels]
     plt.legend(reversed(handles), reversed(short_labels), loc='upper center', bbox_to_anchor=(0.5,-0.12), ncol=config['legend columns'])
-    imgfile = config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
+    imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
     print("Writing...")
     global top_x_bbox
     if step == 0:
@@ -179,10 +188,15 @@ def build_topX_timers_dataframe(fr_step, step, config):
 def process_file(args):
     with open(args.config) as config_data:
         config = json.load(config_data)
+    # make the output directory
+    if "SVG output directory" not in config or config["SVG output directory"] == ".":
+    	config["SVG output directory"] = os.getcwd()
+    else:
+        Path(config["SVG output directory"]).mkdir(parents=True, exist_ok=True)
     filename = args.instream
     print ("Opening:", filename)
     if not args.nompi:
-        fr = adios2.open(filename, "r", MPI.COMM_SELF, config["ADIOS2 config file"], "TAUProfileOutput")
+        fr = adios2.open(filename, "r", "adios2.xml", "TAUProfileOutput")
     else:
         fr = adios2.open(filename, "r", config["ADIOS2 config file"], "TAUProfileOutput")
     # Get the attributes (simple name/value pairs)
@@ -192,6 +206,7 @@ def process_file(args):
     cur_step = 0
     # Iterate over the steps
     for fr_step in fr:
+        begin_time = time.time()
         # track current step
         cur_step = fr_step.current_step()
         print(filename, "Step = ", cur_step)
@@ -203,6 +218,9 @@ def process_file(args):
                 build_per_host_dataframe(fr_step, cur_step, num_hosts, f)
             else:
                 build_per_rank_dataframe(fr_step, cur_step, f)
+        fr.end_step()
+        total_time = time.time() - begin_time
+        print(f"Processed step in {total_time} seconds", flush=True)
 
 
 if __name__ == '__main__':
@@ -210,4 +228,4 @@ if __name__ == '__main__':
     begin_time = time.time()
     process_file(args)
     total_time = time.time() - begin_time
-    print(f"Processed file in {total_time} seconds")
+    print(f"Processed file in {total_time} seconds", flush=True)
