@@ -188,11 +188,18 @@ def build_topX_timers_dataframe(fr_step, step, config):
 def process_file(args):
     with open(args.config) as config_data:
         config = json.load(config_data)
+
     # make the output directory
     if "SVG output directory" not in config or config["SVG output directory"] == ".":
-    	config["SVG output directory"] = os.getcwd()
+        config["SVG output directory"] = os.getcwd()
     else:
         Path(config["SVG output directory"]).mkdir(parents=True, exist_ok=True)
+    for f in config["figures"]:
+        if "SVG output directory" not in f or f["SVG output directory"] == ".":
+            f["SVG output directory"] = config["SVG output directory"]
+        else:
+            Path(config["SVG output directory"]).mkdir(parents=True, exist_ok=True)
+
     filename = args.instream
     print ("Opening:", filename)
     if not args.nompi:

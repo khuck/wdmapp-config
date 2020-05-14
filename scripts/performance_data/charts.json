@@ -87,6 +87,6 @@
         }
     ],
     "ADIOS2 config file": "adios2.xml",
-    "SVG output directory": "/gpfs/alpine/scratch/khuck/csc143/XGC-Examples/neoclassical_core/tau_svg_files"
+    "SVG output directory": "tau_svg_files"
 }
 
