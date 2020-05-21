@@ -37,6 +37,7 @@
         "legend columns" : 1,
         "x axis" : "Rank",
         "y axis" : "Value",
+        "plot style" : ".",
         "components" : [
             "Memory Footprint (VmRSS) (KB) / Mean",
             "Peak Memory Usage Resident Set Size (VmHWM) (KB) / Mean",
@@ -57,6 +58,7 @@
         "legend columns" : 2,
         "x axis" : "Rank",
         "y axis" : "Value",
+        "plot style" : ".",
         "components" : [
             "io:cancelled_write_bytes / Mean",
             "io:rchar / Mean",
@@ -78,7 +80,7 @@
         },
         {
         "name" : "Top 9 Timers",
-        "filename" : "top_X_timers",
+        "filename" : "top_9_timers",
         "granularity" : "9",
         "legend columns" : 2,
         "x axis" : "Rank",

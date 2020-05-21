@@ -44,18 +44,30 @@ def get_num_hosts(attr_info):
             names[(attr_info[key]['Value'])] = 1
     return len(names)
 
+def get_valid_ranks(attr_info):
+    ranks_per_host = {}
+    for key in attr_info:
+        if "Hostname" in key:
+            rank_id = int(key.split(':')[1])
+            host_name = attr_info[key]['Value']
+            if host_name in ranks_per_host:
+                ranks_per_host[host_name].append(rank_id)
+            else:
+                ranks_per_host[host_name] = [rank_id,]
+    valid_ranks = [min(ranks_per_host[host]) for host in ranks_per_host]
+    return valid_ranks
+
 # Get the tight bbox once per figure because it is slow
 
 def get_renderer_bbox(ax):
     fig = ax.get_figure()
     fig.canvas.print_svg(io.BytesIO())
-    bbox = fig.get_tightbbox(fig._cachedRenderer).padded(0.2)
-    #bbox = fig.get_tightbbox(fig.canvas.get_renderer()).padded(0.15)
+    bbox = fig.get_tightbbox(fig._cachedRenderer).padded(0.35)
     return bbox
 
 # Build a dataframe that has per-node data for this timestep of the output data
 
-def build_per_host_dataframe(fr_step, step, num_hosts, config):
+def build_per_host_dataframe(fr_step, step, num_hosts, valid_ranks, config):
     # Read the number of ranks - check for the new method first
     num_ranks = 1
     if len(fr_step.read('num_ranks')) == 0:
@@ -63,8 +75,8 @@ def build_per_host_dataframe(fr_step, step, num_hosts, config):
     else:
         num_ranks = fr_step.read('num_ranks')[0]
 
-    # Find out how many ranks per node we have
-    ranks_per_node = num_ranks / num_hosts
+    # Find out how many ranks per node we have (ceiling division)
+    ranks_per_node = (num_ranks // num_hosts) + 1
     rows = []
     # For each variable, get each MPI rank's data, some will be bogus (they didn't write it)
     for name in config["components"]:
@@ -83,11 +95,12 @@ def build_per_host_dataframe(fr_step, step, num_hosts, config):
     df['step']=step
     # Filter out the rows that don't have valid data (keep only the lowest rank on each host)
     # This will filter out the bogus data
-    df_trimmed = df[df['mpi_rank']%ranks_per_node == 0]
+    df_trimmed = df[df['mpi_rank'].isin(valid_ranks)]
     print("Plotting...")
     ax = df_trimmed[config["labels"]].plot(kind='bar', stacked=True)
     ax.set_xlabel(config["x axis"])
     ax.set_ylabel(config["y axis"])
+    plt.xticks(rotation='horizontal')
     plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.12), ncol=config["legend columns"])
     imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
     print("Writing...")
@@ -118,7 +131,7 @@ def build_per_rank_dataframe(fr_step, step, config):
     # Add the step column, all with the same value
     df['step']=step
     print("Plotting...")
-    ax = df[config["labels"]].plot(logy=True, style='.-')
+    ax = df[config["labels"]].plot(logy=True, style=config["plot style"])
     ax.set_xlabel(config["x axis"])
     ax.set_ylabel(config["y axis"])
     plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11), ncol=config['legend columns'])
@@ -135,6 +148,7 @@ def build_per_rank_dataframe(fr_step, step, config):
 
 def build_topX_timers_dataframe(fr_step, step, config):
     #variables = fr_step.get_variable_names()
+    totalTime = fr_step.read('.TAU application / Inclusive TIME')[0]
     variables = fr_step.available_variables()
     num_threads = fr_step.read('num_threads')[0]
     timer_data = {}
@@ -150,7 +164,10 @@ def build_topX_timers_dataframe(fr_step, step, config):
             timer_data[shortname] = []
             temp_vals = fr_step.read(name)
             for i in temp_vals:
-                timer_data[shortname].append(i)
+                if i > totalTime:
+                    timer_data[shortname].append(0)
+                else: 
+                    timer_data[shortname].append(i)
     print("Processing dataframe...")
     df = pd.DataFrame(timer_data)
     # Get the mean of each column
@@ -170,6 +187,8 @@ def build_topX_timers_dataframe(fr_step, step, config):
     ax = df[topX_cols].plot(kind='bar', stacked=True, width=1.0)
     ax.set_xlabel(config["x axis"])
     ax.set_ylabel(config["y axis"])
+    num_ticks=8
+    [l.set_visible(False) for (i,l) in enumerate(ax.xaxis.get_ticklabels()) if i%num_ticks !=0]
     handles, labels = ax.get_legend_handles_labels()
     short_labels = [label[0:config["max label length"]] for label in labels]
     plt.legend(reversed(handles), reversed(short_labels), loc='upper center', bbox_to_anchor=(0.5,-0.12), ncol=config['legend columns'])
@@ -203,7 +222,7 @@ def process_file(args):
     filename = args.instream
     print ("Opening:", filename)
     if not args.nompi:
-        fr = adios2.open(filename, "r", "adios2.xml", "TAUProfileOutput")
+        fr = adios2.open(filename, "r", MPI.COMM_SELF, "adios2.xml", "TAUProfileOutput")
     else:
         fr = adios2.open(filename, "r", config["ADIOS2 config file"], "TAUProfileOutput")
     # Get the attributes (simple name/value pairs)
@@ -222,7 +241,8 @@ def process_file(args):
             if "Timer" in f["name"]:
                 build_topX_timers_dataframe(fr_step, cur_step, f)
             elif f["granularity"] == "node":
-                build_per_host_dataframe(fr_step, cur_step, num_hosts, f)
+                valid_ranks = get_valid_ranks(attr_info)
+                build_per_host_dataframe(fr_step, cur_step, num_hosts, valid_ranks, f)
             else:
                 build_per_rank_dataframe(fr_step, cur_step, f)
         fr.end_step()
