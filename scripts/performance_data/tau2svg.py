@@ -180,7 +180,10 @@ def build_topX_timers_dataframe(fr_step, step, config):
     other_series = sorted_series[topX+1:].axes[0].tolist()
     df["other"] = 0
     for other_col in other_series:
-        df["other"] += df[other_col]
+        if any(df[other_col]<0):
+            continue
+        else:
+            df["other"] += df[other_col]
     topX_cols.insert(0,"other")
     # Plot the DataFrame
     print("Plotting...")
