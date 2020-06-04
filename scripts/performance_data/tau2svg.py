@@ -65,6 +65,21 @@ def get_renderer_bbox(ax):
     bbox = fig.get_tightbbox(fig._cachedRenderer).padded(0.35)
     return bbox
 
+# Format the output image file name
+def get_image_filename(config, fr_step, step):
+    imgfile = ""
+    if config["Timestep for filename"] == "default":
+        imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
+    else:
+        stepnumber = fr_step.read(config["Timestep for filename"])
+        if (stepnumber.size == 0):
+            stepnumber = 0
+        else: 
+            stepnumber = int(stepnumber[0])
+        imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(stepnumber)+".svg"
+    
+    return imgfile
+
 # Build a dataframe that has per-node data for this timestep of the output data
 
 def build_per_host_dataframe(fr_step, step, num_hosts, valid_ranks, config):
@@ -102,7 +117,7 @@ def build_per_host_dataframe(fr_step, step, num_hosts, valid_ranks, config):
     ax.set_ylabel(config["y axis"])
     plt.xticks(rotation='horizontal')
     plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.12), ncol=config["legend columns"])
-    imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
+    imgfile = get_image_filename(config, fr_step, step)
     print("Writing...")
     global host_bbox
     if step == 0:
@@ -135,7 +150,7 @@ def build_per_rank_dataframe(fr_step, step, config):
     ax.set_xlabel(config["x axis"])
     ax.set_ylabel(config["y axis"])
     plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11), ncol=config['legend columns'])
-    imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
+    imgfile = get_image_filename(config, fr_step, step)
     print("Writing...")
     global rank_bbox
     if step == 0:
@@ -195,7 +210,7 @@ def build_topX_timers_dataframe(fr_step, step, config):
     handles, labels = ax.get_legend_handles_labels()
     short_labels = [label[0:config["max label length"]] for label in labels]
     plt.legend(reversed(handles), reversed(short_labels), loc='upper center', bbox_to_anchor=(0.5,-0.12), ncol=config['legend columns'])
-    imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
+    imgfile = get_image_filename(config, fr_step, step)
     print("Writing...")
     global top_x_bbox
     if step == 0:
@@ -216,12 +231,18 @@ def process_file(args):
         config["SVG output directory"] = os.getcwd()
     else:
         Path(config["SVG output directory"]).mkdir(parents=True, exist_ok=True)
+    
+    if "Timestep for filename" not in config:
+        config["Timestep for filename"] = "default"
+    
     for f in config["figures"]:
         if "SVG output directory" not in f or f["SVG output directory"] == ".":
             f["SVG output directory"] = config["SVG output directory"]
         else:
             Path(config["SVG output directory"]).mkdir(parents=True, exist_ok=True)
-
+        if "Timestep for filename" not in f:
+             f["Timestep for filename"] = config["Timestep for filename"]
+        
     filename = args.instream
     print ("Opening:", filename)
     if not args.nompi:

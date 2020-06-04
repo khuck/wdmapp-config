@@ -89,6 +89,8 @@
         }
     ],
     "ADIOS2 config file": "adios2.xml",
-    "SVG output directory": "tau_svg_files"
+    "SVG output directory": "tau_svg_files",
+    "Timestep for filename": "MAIN_LOOP / Calls"
+
 }
 
