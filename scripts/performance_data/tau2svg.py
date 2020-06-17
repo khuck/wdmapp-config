@@ -68,6 +68,8 @@ def get_renderer_bbox(ax):
 # Format the output image file name
 def get_image_filename(config, fr_step, step):
     imgfile = ""
+    if "filename" not in config:
+        config["filename"] = config["name"].replace(" ", "-")
     if config["Timestep for filename"] == "default":
         imgfile = config["SVG output directory"]+"/"+config["filename"]+"_"+"{0:0>5}".format(step)+".svg"
     else:
@@ -113,9 +115,16 @@ def build_per_host_dataframe(fr_step, step, num_hosts, valid_ranks, config):
     df_trimmed = df[df['mpi_rank'].isin(valid_ranks)]
     print("Plotting...")
     ax = df_trimmed[config["labels"]].plot(kind='bar', stacked=True)
+    # Create default axes labels if they're not configured
+    if "x axis" not in config: 
+        config["x axis"]="Node"
+    if "y axis" not in config:
+        config["y axis"]="Percent"
     ax.set_xlabel(config["x axis"])
     ax.set_ylabel(config["y axis"])
     plt.xticks(rotation='horizontal')
+    if "legend columns" not in config:
+        config["legend columns"] = 3
     plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.12), ncol=config["legend columns"])
     imgfile = get_image_filename(config, fr_step, step)
     print("Writing...")
@@ -147,8 +156,15 @@ def build_per_rank_dataframe(fr_step, step, config):
     df['step']=step
     print("Plotting...")
     ax = df[config["labels"]].plot(logy=True, style=config["plot style"])
+    # Create default axes labels if they're not configured
+    if "x axis" not in config:
+        config["x axis"]="Rank"
+    if "y axis" not in config:
+        config["y axis"]="Value"
     ax.set_xlabel(config["x axis"])
     ax.set_ylabel(config["y axis"])
+    if "legend columns" not in config:
+        config["legend columns"] = 2
     plt.legend(loc='upper center', bbox_to_anchor=(0.5,-0.11), ncol=config['legend columns'])
     imgfile = get_image_filename(config, fr_step, step)
     print("Writing...")
@@ -194,21 +210,29 @@ def build_topX_timers_dataframe(fr_step, step, config):
     # Add all other timers together
     other_series = sorted_series[topX+1:].axes[0].tolist()
     df["other"] = 0
-    for other_col in other_series:
-        if any(df[other_col]<0):
-            continue
-        else:
-            df["other"] += df[other_col]
+    for other_col in other_series: 
+        df[other_col].clip(lower=0)
+        df["other"] += df[other_col]
     topX_cols.insert(0,"other")
     # Plot the DataFrame
     print("Plotting...")
     ax = df[topX_cols].plot(kind='bar', stacked=True, width=1.0)
+    # Create default axes labels if they're not configured
+    if "x axis" not in config:
+        config["x axis"] = "Rank"
+    if "y axis" not in config:
+        config["y axis"] = "Time"
     ax.set_xlabel(config["x axis"])
     ax.set_ylabel(config["y axis"])
-    num_ticks=8
-    [l.set_visible(False) for (i,l) in enumerate(ax.xaxis.get_ticklabels()) if i%num_ticks !=0]
+    if "number of ticks" not in config:
+        config["number of ticks"] = 8
+    [l.set_visible(False) for (i,l) in enumerate(ax.xaxis.get_ticklabels()) if i%(config["number of ticks"]) !=0]
     handles, labels = ax.get_legend_handles_labels()
+    if "max label length" not in config:
+        config["max label length"] = 30 # default value if not set
     short_labels = [label[0:config["max label length"]] for label in labels]
+    if "legend columns" not in config:
+        config["legend columns"] = 2
     plt.legend(reversed(handles), reversed(short_labels), loc='upper center', bbox_to_anchor=(0.5,-0.12), ncol=config['legend columns'])
     imgfile = get_image_filename(config, fr_step, step)
     print("Writing...")
