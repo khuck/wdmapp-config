@@ -7,7 +7,7 @@
         "legend columns" : 3,
         "x axis" : "Node",
         "y axis" : "Percent",
-        "components" : [
+        "variables" : [
             "cpu: Guest % / Mean",
             "cpu: I/O Wait % / Mean",
             "cpu: IRQ % / Mean",
@@ -38,7 +38,7 @@
         "x axis" : "Rank",
         "y axis" : "Value",
         "plot style" : ".",
-        "components" : [
+        "variables" : [
             "Memory Footprint (VmRSS) (KB) / Mean",
             "Peak Memory Usage Resident Set Size (VmHWM) (KB) / Mean",
             "program size (kB) / Mean",
@@ -59,7 +59,7 @@
         "x axis" : "Rank",
         "y axis" : "Value",
         "plot style" : ".",
-        "components" : [
+        "variables" : [
             "io:cancelled_write_bytes / Mean",
             "io:rchar / Mean",
             "io:read_bytes / Mean",
@@ -81,7 +81,8 @@
         {
         "name" : "Top 9 Timers",
         "filename" : "top_9_timers",
-        "granularity" : "9",
+        "granularity" : "process",
+        "number of timers" : 9,
         "legend columns" : 2,
         "x axis" : "Rank",
         "y axis" : "Time",

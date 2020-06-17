@@ -96,7 +96,7 @@ def build_per_host_dataframe(fr_step, step, num_hosts, valid_ranks, config):
     ranks_per_node = (num_ranks // num_hosts) + 1
     rows = []
     # For each variable, get each MPI rank's data, some will be bogus (they didn't write it)
-    for name in config["components"]:
+    for name in config["variables"]:
         rows.append(fr_step.read(name))
     if len(rows[0]) == 0:
         print("No rows!  Is TAU configured correctly?")
@@ -105,6 +105,8 @@ def build_per_host_dataframe(fr_step, step, num_hosts, valid_ranks, config):
     # Now, transpose the matrix so that the rows are each rank, and the variables are columns
     df = pd.DataFrame(rows).transpose()
     # Add a name for each column
+    if "labels" not in config:
+        config["labels"] = config["components"]
     df.columns = config["labels"]
     # Add the MPI rank column (each row is unique)
     df['mpi_rank'] = range(0, len(df))
@@ -140,7 +142,7 @@ def build_per_host_dataframe(fr_step, step, num_hosts, valid_ranks, config):
 def build_per_rank_dataframe(fr_step, step, config):
     rows = []
     # For each variable, get each MPI rank's data
-    for name in config["components"]:
+    for name in config["variables"]:
         rows.append(fr_step.read(name))
     if len(rows[0]) == 0:
         print("No rows!  Is TAU configured correctly?")
@@ -149,6 +151,8 @@ def build_per_rank_dataframe(fr_step, step, config):
     # Now, transpose the matrix so that the rows are each rank, and the variables are columns
     df = pd.DataFrame(rows).transpose()
     # Add a name for each column
+    if "labels" not in config:
+        config["labels"] = config["components"]
     df.columns = config["labels"]
     # Add the MPI rank column (each row is unique)
     df['mpi_rank'] = range(0, len(df))
@@ -205,7 +209,9 @@ def build_topX_timers_dataframe(fr_step, step, config):
     mean_series = df.mean()
     # Get top X timers
     sorted_series = mean_series.sort_values(ascending=False)
-    topX = int(config["granularity"])
+    if "number of timers" not in config:
+        config["number of timers"] = 5
+    topX = config["number of timers"]
     topX_cols = sorted_series[:topX].axes[0].tolist()
     # Add all other timers together
     other_series = sorted_series[topX+1:].axes[0].tolist()
@@ -266,7 +272,7 @@ def process_file(args):
             Path(config["SVG output directory"]).mkdir(parents=True, exist_ok=True)
         if "Timestep for filename" not in f:
              f["Timestep for filename"] = config["Timestep for filename"]
-        
+            
     filename = args.instream
     print ("Opening:", filename)
     if not args.nompi:
