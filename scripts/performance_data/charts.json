@@ -85,6 +85,7 @@
         "legend columns" : 2,
         "x axis" : "Rank",
         "y axis" : "Time",
+        "number of ticks" : 8,
         "max label length" : 30
         }
     ],
